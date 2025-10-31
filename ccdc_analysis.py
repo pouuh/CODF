@@ -767,3 +767,96 @@ def export_ccdc_results(result, output_path, point_id):
                 f.write(f"Segment {idx + 1}: {start_dt.strftime('%Y-%m-%d')} to {end_dt.strftime('%Y-%m-%d')} "
                        f"({duration_days} days, {len(segment_data)} obs, mean NDVI: {mean_ndvi:.3f}, RMSE: {rmse:.3f})\n")
     print(f"Saved segment statistics to: {stats_file}")
+
+def plot_glance_image(lat, lon, year, point_id=None, buffer_distance=1500, thumb_dimensions=256, verbose=True):
+    """
+    Fetches and plots a GLANCE land cover image for a specific location and year.
+
+    Args:
+        lat (float): Latitude of the point location.
+        lon (float): Longitude of the point location.
+        year (int): The year for which to fetch the GLANCE image.
+        point_id (int/str, optional): Point identifier for labeling. Defaults to None.
+        buffer_distance (int, optional): Buffer distance in meters for imagery ROI. Defaults to 1500.
+        thumb_dimensions (int, optional): The dimension of the thumbnail image. Defaults to 256.
+        verbose (bool, optional): If True, print progress messages. Defaults to True.
+
+    Returns:
+        matplotlib.figure.Figure: The figure object containing the plot.
+    """
+    if verbose:
+        print(f"{'='*80}")
+        print(f"Fetching GLANCE Image for {year}")
+        if point_id:
+            print(f"Point ID: {point_id}")
+        print(f"Location: Lat {lat:.4f}, Lon {lon:.4f}")
+        print(f"{'='*80}\\n")
+
+    ee_point = ee.Geometry.Point([lon, lat])
+    roi = ee_point.buffer(buffer_distance).bounds()
+
+    # GLANCE dataset and visualization
+    GLANCE_IC = ee.ImageCollection('projects/GLANCE/DATASETS/V001')
+    glance_palette = [
+        '#0066cc',  # 1: Water
+        '#ccffff',  # 2: Snow/Ice
+        '#cc0066',  # 3: Developed
+        '#cc9966',  # 4: Barren
+        '#006633',  # 5: Forest
+        '#ffcc66',  # 6: Shrubland
+        '#99cc66'   # 7: Herbaceous
+    ]
+    glance_vis_params = {'min': 1, 'max': 7, 'palette': glance_palette}
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+
+    try:
+        # Get the GLANCE image for the specified year
+        img = GLANCE_IC.filterDate(f'{year}-01-01', f'{year}-12-31').select('LC').mosaic()
+
+        # Check if image exists by checking band names. An empty image will have no bands.
+        # This is a server-side check.
+        # has_image = ee.Number(img.bandNames().size()).gt(0).getInfo()
+        # if has_image:
+        url = img.getThumbURL({
+            'region': roi.getInfo()['coordinates'],
+            'dimensions': thumb_dimensions,
+            'format': 'png',
+            **glance_vis_params
+        })
+
+        response = requests.get(url)
+        img_data = Image.open(BytesIO(response.content))
+        ax.imshow(img_data)
+
+        # Add center point marker
+        width, height = img_data.size
+        center_x, center_y = width / 2, height / 2
+        ax.plot(center_x, center_y, 'ro', markersize=8,
+                markeredgecolor='white', markeredgewidth=1.5)
+
+        title = f'GLANCE Land Cover - {year}\\n'
+        if point_id:
+            title = f'Point {point_id} - ' + title
+        title += f'Location: ({lat:.4f}, {lon:.4f})'
+        ax.set_title(title, fontsize=12, fontweight='bold')
+        if verbose:
+            print(f"  Successfully fetched GLANCE image for {year}.")
+    else:
+        ax.text(0.5, 0.5, f'No GLANCE imagery\\n({year})',
+                    ha='center', va='center', fontsize=12, transform=ax.transAxes)
+        ax.set_title(f'GLANCE Land Cover - {year}', fontsize=12, fontweight='bold')
+        if verbose:
+            print(f"  No GLANCE imagery found for {year}.")
+
+    except Exception as e:
+        ax.text(0.5, 0.5, f'Error fetching image\\n({year})',
+                 ha='center', va='center', fontsize=12, transform=ax.transAxes)
+        ax.set_title(f'GLANCE Land Cover - {year}', fontsize=12, fontweight='bold')
+        if verbose:
+            print(f"  Error fetching GLANCE image for {year}: {e}")
+
+    ax.axis('off')
+    plt.tight_layout()
+    
+    return fig
