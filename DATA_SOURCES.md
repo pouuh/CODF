@@ -6,8 +6,30 @@ This document catalogs all data sources used across the CODF project notebooks.
 
 ---
 
+## 🗺️ Quick File Location Reference (for AI Programming)
+
+**Key Data Directories:**
+- **CODF Geometries:** `/usr2/postdoc/chishan/project_data/CODF/CODF_Chishan.gpkg`
+- **TerraClass (AMZ files):** `/projectnb/modislc/users/chishan/data/TerraClass/` or `/projectnb/modislc/users/chishan/data/MapBiomas/MAPBIOMAS/AMZ.{year}.M.tif`
+- **GLANCE Products:** `/projectnb/measures/products/SA/v001/DAAC/LC/GLANCE.A{YEAR}0701.h*v*.001.*.SA.LC.tif`
+- **MapBiomas Samples:** `/projectnb/modislc/users/chishan/data/MapBiomas/MAPBIOMAS/mapbiomas_85k_col2_1_points_english.csv`
+- **MapBiomas Boundaries:** `/projectnb/modislc/users/chishan/data/MapBiomas/BR_Municipios_2021/BR_Municipios_2021.shp`
+- **GLANCE STAC Catalog:** `/projectnb/modislc/users/chishan/stac_glance_SA_fixed_m/catalog.json`
+
+**Google Earth Engine Assets:**
+- **CODF:** `projects/ee-zcs/assets/CODF_{polygons|points|lines}`
+- **MapBiomas:** `projects/mapbiomas-public/assets/brazil/lulc/collection10/mapbiomas_brazil_collection10_integration_v2`
+- **Hansen Forest:** `UMD/hansen/global_forest_change_2024_v1_12`
+- **GLANCE:** `projects/GLANCE/DATASETS/V001`
+- **WDPA Protected:** `WCMC/WDPA/current/polygons`
+
+**Important Note:** AMZ.{year}.M.tif files are **TerraClass data**, not MapBiomas data (despite being in MapBiomas folder).
+
+---
+
 ## Table of Contents
 
+- [Quick File Location Reference](#-quick-file-location-reference-for-ai-programming)
 - [Google Earth Engine (GEE) Data](#google-earth-engine-gee-data)
   - [GEE Assets](#gee-assets)
   - [GEE Public Datasets](#gee-public-datasets)
@@ -323,24 +345,29 @@ Raster datasets for land cover, forest classification, and analysis.
 - **File Pattern:** `GLANCE.A{YEAR}0701.h*v*.001.*.SA.LC.tif`
 - **Used in 7 file reference(s)**
 
-#### MapBiomas Collection
+#### TerraClass Amazon
 
-- **Description:** Annual land use and land cover maps for Brazil
+- **Description:** Land use and land cover mapping for Brazilian Amazon (AMZ = Amazon Legal region)
 - **Resolution:** 30 meters
 - **Format:** GeoTIFF (COG available)
-- **Temporal Coverage:** 1985-present
-- **Location:** `/projectnb/modislc/users/chishan/data/MapBiomas/`
-- **File Pattern:** `AMZ.{year}.M.tif` or `AMZ.{year}.M.cog.tif`
-- **Used in 7 file reference(s)**
-
-#### TerraClass
-
-- **Description:** Land use and land cover mapping for Brazilian Amazon
-- **Resolution:** 30 meters
-- **Format:** GeoTIFF
+- **Temporal Coverage:** Multiple years (2008, 2010, 2012, 2014, 2016, 2018, etc.)
 - **Source:** INPE (Brazilian National Institute for Space Research)
-- **Location:** `/projectnb/modislc/users/chishan/data/TerraClass/`
-- **Used in 5 file reference(s)**
+- **Primary Location:** `/projectnb/modislc/users/chishan/data/TerraClass/`
+- **Also stored in:** `/projectnb/modislc/users/chishan/data/MapBiomas/MAPBIOMAS/` (note: despite folder name)
+- **File Pattern:** `AMZ.{year}.M.tif` or `AMZ.{year}.M.cog.tif`
+- **Note:** AMZ files are TerraClass data, not MapBiomas data
+- **Used in 12 file reference(s)**
+
+#### MapBiomas Collection
+
+- **Description:** Annual land use and land cover maps for Brazil (primarily accessed via GEE)
+- **Resolution:** 30 meters
+- **Format:** Google Earth Engine ImageCollection
+- **Temporal Coverage:** 1985-present (Collection 10)
+- **GEE Asset:** `projects/mapbiomas-public/assets/brazil/lulc/collection10/mapbiomas_brazil_collection10_integration_v2`
+- **Local Sample Data:** `/projectnb/modislc/users/chishan/data/MapBiomas/MAPBIOMAS/mapbiomas_85k_col2_1_points_english.csv`
+- **Forest Classes:** 1, 3, 4, 5, 6, 49
+- **Used primarily via GEE in multiple notebooks**
 
 #### Other Raster Files
 
@@ -465,12 +492,32 @@ loss_year = hansen.select('lossyear')
 
 ### Local File Access
 
-
 Most local files are stored on shared file systems:
 - **CODF data:** `/usr2/postdoc/chishan/project_data/CODF/`
 - **MapBiomas data:** `/projectnb/modislc/users/chishan/data/MapBiomas/`
+  - Sample points: `mapbiomas_85k_col2_1_points_english.csv`
+  - Boundaries: `BR_Municipios_2021/BR_Municipios_2021.shp`
+  - **Note:** AMZ files in MAPBIOMAS folder are actually TerraClass data
 - **GLANCE products:** `/projectnb/measures/products/SA/v001/DAAC/LC/`
-- **TerraClass data:** `/projectnb/modislc/users/chishan/data/TerraClass/`
+  - Pattern: `GLANCE.A{YEAR}0701.h{tile_h}v{tile_v}.001.*.SA.LC.tif`
+- **TerraClass data:** 
+  - Primary: `/projectnb/modislc/users/chishan/data/TerraClass/`
+  - Also in: `/projectnb/modislc/users/chishan/data/MapBiomas/MAPBIOMAS/`
+  - Pattern: `AMZ.{year}.M.tif` or `AMZ.{year}.M.cog.tif`
+
+#### Common File Patterns
+```python
+# TerraClass (AMZ = Amazon Legal region)
+terraclass_file = f"/projectnb/modislc/users/chishan/data/MapBiomas/MAPBIOMAS/AMZ.{year}.M.tif"
+# or
+terraclass_cog = f"/projectnb/modislc/users/chishan/data/MapBiomas/COG/AMZ.{year}.M.cog.tif"
+
+# GLANCE tiles
+glance_pattern = "/projectnb/measures/products/SA/v001/DAAC/LC/GLANCE.A{year}0701.h*v*.001.*.SA.LC.tif"
+
+# STAC catalog
+glance_stac = "/projectnb/modislc/users/chishan/stac_glance_SA_fixed_m/catalog.json"
+```
 
 ### External Data Access
 
